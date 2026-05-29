@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type FacilityType = "cottage" | "bungalow";
 
@@ -282,7 +282,13 @@ export default function ReservePage() {
   const [email, setEmail] = useState("");
   const [arrivalTime, setArrivalTime] = useState("");
   const [notes, setNotes] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState<"form" | "confirm" | "done">("form");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0);
+    }
+  }, [step]);
 
   const nights = calculateNights(checkin, checkout);
 
@@ -348,20 +354,206 @@ export default function ReservePage() {
     );
   };
 
-  if (submitted) {
-    const facilitiesSummary: string[] = [
-      ...selectedCottages.map(
-        (id) => COTTAGES.find((c) => c.id === id)?.name ?? id,
-      ),
-      ...selectedBungalows.map(
-        (id) => BUNGALOWS.find((b) => b.id === id)?.name ?? id,
-      ),
-    ];
-    if (tentBringCount > 0)
-      facilitiesSummary.push(`持込テント ${tentBringCount}張`);
-    if (tentRentCount > 0)
-      facilitiesSummary.push(`貸出テント ${tentRentCount}張`);
+  const facilitiesSummary: string[] = [
+    ...selectedCottages.map(
+      (id) => COTTAGES.find((c) => c.id === id)?.name ?? id,
+    ),
+    ...selectedBungalows.map(
+      (id) => BUNGALOWS.find((b) => b.id === id)?.name ?? id,
+    ),
+  ];
+  if (tentBringCount > 0)
+    facilitiesSummary.push(`持込テント ${tentBringCount}張`);
+  if (tentRentCount > 0)
+    facilitiesSummary.push(`テント貸出し ${tentRentCount}張`);
+  if (hasTent && tentPeople > 0)
+    facilitiesSummary.push(`テントサイト利用人数 ${tentPeople}名`);
 
+  if (step === "confirm") {
+    return (
+      <div className="min-h-screen bg-stone-50">
+        <header className="bg-emerald-800 text-white py-6 px-6">
+          <div className="max-w-3xl mx-auto">
+            <p className="text-emerald-200 text-xs tracking-widest mb-1">
+              CONFIRMATION
+            </p>
+            <h1 className="text-2xl font-bold">ご予約内容の確認</h1>
+            <p className="text-emerald-100 text-sm mt-1">
+              下記の内容で予約を確定します。よろしければ「この内容で予約する」を押してください。
+            </p>
+          </div>
+        </header>
+
+        <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+            <strong>※ 試作版のお知らせ：</strong>このページは設計確認のための試作版です。「予約する」を押しても予約は確定しませんのでご安心ください。
+          </div>
+
+          {/* 利用施設 */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+              ① 利用施設
+            </h2>
+            <ul className="list-disc ml-5 text-stone-800 space-y-1">
+              {facilitiesSummary.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          </section>
+
+          {/* 期間 */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+              ② 期間・到着時刻
+            </h2>
+            <dl className="grid grid-cols-3 gap-y-2 text-sm">
+              <dt className="text-stone-500">チェックイン</dt>
+              <dd className="col-span-2 text-stone-800">{checkin || "—"}</dd>
+              <dt className="text-stone-500">チェックアウト</dt>
+              <dd className="col-span-2 text-stone-800">{checkout || "—"}</dd>
+              <dt className="text-stone-500">宿泊数</dt>
+              <dd className="col-span-2 text-stone-800">{nights}泊</dd>
+              <dt className="text-stone-500">到着予定時刻</dt>
+              <dd className="col-span-2 text-stone-800">
+                {arrivalTime || "—"}
+                {isLateArrival && (
+                  <span className="ml-2 text-xs text-amber-700">
+                    （17時以降のため管理人不在・受付は翌朝）
+                  </span>
+                )}
+              </dd>
+            </dl>
+          </section>
+
+          {/* 人数 */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+              ③ ご利用人数
+            </h2>
+            <p className="text-stone-800 text-sm">
+              大人 {adults}名 / 小・中 {children}名 / 幼児 {infants}名
+              <span className="text-stone-500 ml-2">
+                （合計 {totalPeople}名）
+              </span>
+            </p>
+          </section>
+
+          {/* ペット同伴 */}
+          {showPetField && (
+            <section className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+                ペット同伴
+              </h2>
+              <p className="text-stone-800 text-sm">
+                {hasPet
+                  ? `同伴あり${petInfo ? `（${petInfo}）` : ""}`
+                  : "同伴なし"}
+              </p>
+            </section>
+          )}
+
+          {/* 代表者情報 */}
+          <section className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+              代表者情報
+            </h2>
+            <dl className="grid grid-cols-3 gap-y-2 text-sm">
+              <dt className="text-stone-500">氏名</dt>
+              <dd className="col-span-2 text-stone-800">{name || "—"}</dd>
+              <dt className="text-stone-500">住所</dt>
+              <dd className="col-span-2 text-stone-800">{address || "—"}</dd>
+              <dt className="text-stone-500">電話番号</dt>
+              <dd className="col-span-2 text-stone-800">{phone || "—"}</dd>
+              <dt className="text-stone-500">メールアドレス</dt>
+              <dd className="col-span-2 text-stone-800">{email || "—"}</dd>
+            </dl>
+          </section>
+
+          {/* 特記事項 */}
+          {notes.trim() && (
+            <section className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-bold text-stone-800 mb-3 pb-2 border-b">
+                特記事項・ご要望
+              </h2>
+              <p className="text-stone-800 text-sm whitespace-pre-wrap">
+                {notes}
+              </p>
+            </section>
+          )}
+
+          {/* 料金まとめ */}
+          <section className="bg-emerald-50 border-2 border-emerald-200 rounded-lg p-6">
+            <h2 className="text-lg font-bold text-emerald-900 mb-4">
+              料金のお見積もり
+            </h2>
+            <div className="space-y-3">
+              {items.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-start py-2 border-b border-emerald-200"
+                >
+                  <div className="flex-1">
+                    <div className="text-stone-800">{item.label}</div>
+                    <div className="text-xs text-stone-500 mt-0.5">
+                      {item.detail}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-stone-800 ml-4">
+                    {item.amount.toLocaleString()}円
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between items-center pt-3 text-xl">
+                <span className="font-bold text-emerald-900">合計</span>
+                <span className="font-bold text-emerald-700">
+                  {total.toLocaleString()}円
+                </span>
+              </div>
+              {needsManualSheetFee && (
+                <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">
+                  ⚠️ 複数コテージのご利用です。シーツ代は概算で表示しています。当日の振り分けに応じて精算します。
+                </p>
+              )}
+              <p className="text-xs text-stone-500 text-right">
+                当日現地でのお支払いとなります
+              </p>
+            </div>
+          </section>
+
+          {isLateArrival && (
+            <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm">
+              <p className="font-semibold text-amber-800 mb-1">
+                ⚠️ 17時以降のご到着について
+              </p>
+              <p className="text-amber-700">
+                管理人は17時で退出します。ご到着時は施設を直接ご利用ください。受付は翌朝8:30以降にお願いします。緊急時は 090-6478-6054 まで。
+              </p>
+            </div>
+          )}
+
+          {/* ボタン */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setStep("form")}
+              className="w-full sm:w-auto sm:flex-1 border-2 border-stone-300 text-stone-700 font-bold py-4 rounded-full hover:bg-stone-100 transition-colors"
+            >
+              修正する
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep("done")}
+              className="w-full sm:w-auto sm:flex-1 bg-emerald-700 text-white font-bold py-4 rounded-full hover:bg-emerald-800 transition-colors"
+            >
+              この内容で予約する
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "done") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-stone-50">
         <div className="max-w-xl w-full bg-white rounded-lg shadow p-10 text-center">
@@ -416,7 +608,7 @@ export default function ReservePage() {
             </div>
           )}
           <button
-            onClick={() => setSubmitted(false)}
+            onClick={() => setStep("form")}
             className="text-emerald-700 hover:underline"
           >
             フォームに戻る
@@ -448,7 +640,7 @@ export default function ReservePage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setSubmitted(true);
+            setStep("confirm");
           }}
           className="space-y-10"
         >
